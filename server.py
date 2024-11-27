@@ -2,17 +2,16 @@ import socket
 import threading
 import queue
 
-# Stores messages in a queue. FIFO queue.
-# an empty list is created to store clients.
+# Creates a queue for messages and a list for clients
 messages = queue.Queue()
 clients = []
 
-# Creates an UDP socket and binds it to localhost port 9876
+# Creates a UDP socket server
 server = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 server.bind(("localhost", 9876))
 
-# This function listens to incoming messages and puts them in messages. 
-def receive() -> None:
+# This function listens to incoming messages and puts them in the queue.
+def receive():
     while True:
         try:
             message, addr = server.recvfrom(1024)
@@ -20,29 +19,32 @@ def receive() -> None:
         except:
             pass
 
-# This function listens to the new messages and broadcast them to all clients.
-def broadcast() -> None:
+# This function broadcasts the messages to all clients.
+def broadcast():
     while True:
-        while not messages.empty(): # is true if there are any messages in queue.
+        while not messages.empty(): # If there are messages in the queue, it will broadcast them.
             message, addr = messages.get()
             print(message.decode())
-            if addr not in clients: # If address (user) is not in clients, adds client.
+            if addr not in clients: # If the client is new, it will add it to the list.
                 clients.append(addr)
-            for client in clients: # This loop checks if a client has a signuptag. If it's new, sends a "joined!" message
+            for client in clients: # Sends the message to all clients
                 try:
-                    if message.decode().startswith("SIGNUP_TAG:"):
-                        name = message.decode()[message.decode().index(":")+1:]
-                        server.sendto(f"{name} joined!".encode(), client)
-                    else: # Sends the message
-                        server.sendto(message, client)
+                    server.sendto(message, client)
                 except:
                     clients.remove(client)
 
-# Creates the threads
+# Create the threads
 t1 = threading.Thread(target=receive)
 t2 = threading.Thread(target=broadcast)
 
 # Start the threads
 t1.start()
 t2.start()
-                    
+print("Server started.")
+
+# Join the threads
+t1.join()
+t2.join()
+
+# Close the server
+server.close()
